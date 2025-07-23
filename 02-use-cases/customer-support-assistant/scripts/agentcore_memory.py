@@ -97,7 +97,7 @@ def create(name, ssm_param, event_expiry_days):
             description="Memory for customer support agent",
             event_expiry_days=event_expiry_days,
         )
-        memory_id = memory["memoryId"]
+        memory_id = memory["id"]
         click.echo(f"✅ Memory created successfully: {memory_id}")
 
     except Exception as e:
@@ -105,7 +105,7 @@ def create(name, ssm_param, event_expiry_days):
             click.echo("📋 Memory already exists, finding existing resource...")
             memories = memory_client.list_memories()
             memory_id = next(
-                (m["memoryId"] for m in memories if name in m.get("name", "")), None
+                (m["id"] for m in memories if name in m.get("name", "")), None
             )
             if memory_id:
                 click.echo(f"✅ Using existing memory: {memory_id}")
