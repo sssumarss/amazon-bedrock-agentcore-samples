@@ -253,3 +253,36 @@ def create_agentcore_role(agent_name):
         print(e)
 
     return agentcore_iam_role
+
+def cleanup_role(role_name):
+    """
+    Clean up an IAM role and its policies
+    
+    Args:
+        role_name (str): Name of the role to clean up
+    """
+    iam_client = boto3.client('iam')
+    
+    try:
+        # List and delete attached policies
+        policies = iam_client.list_role_policies(
+            RoleName=role_name,
+            MaxItems=100
+        )
+        
+        for policy_name in policies['PolicyNames']:
+            print(f"Deleting policy: {policy_name}")
+            iam_client.delete_role_policy(
+                RoleName=role_name,
+                PolicyName=policy_name
+            )
+        
+        # Delete the role
+        iam_client.delete_role(
+            RoleName=role_name
+        )
+        
+        print(f"Deleted role: {role_name}")
+    except Exception as e:
+        print(f"Error cleaning up role: {e}")
+        raise

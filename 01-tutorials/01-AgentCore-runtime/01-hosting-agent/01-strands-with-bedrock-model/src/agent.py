@@ -2,36 +2,12 @@
 Agent using Strands Agents framework with Amazon Bedrock model
 """
 from strands import Agent, tool
-from strands_tools import calculator, current_time # Import the calculator tool
+from strands_tools import calculator, current_time # Import the calculator, time tool
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from strands.models import BedrockModel
 
 # Initialize the BedrockAgentCoreApp
 app = BedrockAgentCoreApp()
-
-# # Define calculator tool
-# @tool
-# def calculator(expression: str) -> float:
-#     """
-#     Evaluate a mathematical expression safely.
-    
-#     Args:
-#         expression: A mathematical expression as a string (e.g., "2 + 3", "10 * 5", "100 / 4")
-    
-#     Returns:
-#         The result of the mathematical expression
-#     """
-#     try:
-#         # Only allow basic mathematical operations for safety
-#         allowed_chars = set('0123456789+-*/.() ')
-#         if not all(c in allowed_chars for c in expression):
-#             raise ValueError("Expression contains invalid characters")
-        
-#         # Evaluate the expression safely
-#         result = eval(expression)
-#         return float(result)
-#     except Exception as e:
-#         raise ValueError(f"Invalid mathematical expression: {e}")
 
 # Create a custom tool 
 @tool
@@ -50,9 +26,9 @@ agent = Agent(
 )
 
 @app.entrypoint
-def handle_request(payload):
+def strands_agent_bedrock(payload):
     """
-    Handle incoming requests to the agent
+    Invoke the agent with a payload
     
     Args:
         payload (dict): The request payload containing a 'prompt' field

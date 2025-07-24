@@ -20,16 +20,14 @@ sys.path.append(utils_path)
 
 try:
     from bedrock_agentcore_starter_toolkit import Runtime
-    from utils import create_agentcore_role
-    from src.iam import cleanup_role
+    from utils import create_agentcore_role, cleanup_role
 except ImportError:
     print("Required packages not found. Installing...")
     import subprocess
     subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", 
                           os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "requirements.txt")])
     from bedrock_agentcore_starter_toolkit import Runtime
-    from utils import create_agentcore_role
-    from src.iam import cleanup_role
+    from utils import create_agentcore_role, cleanup_role
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Deploy a Strands Agent to Amazon Bedrock AgentCore Runtime')
@@ -161,39 +159,6 @@ else:
         print("Check AWS CloudWatch logs for more details.")
         return None
 
-def cleanup_utils_role(agent_name):
-    """
-    Clean up an IAM role created by utils.py create_agentcore_role function
-    
-    Args:
-        agent_name (str): Name of the agent (role name will be agentcore-{agent_name}-role)
-    """
-    iam_client = boto3.client('iam')
-    role_name = f"agentcore-{agent_name}-role"
-    
-    try:
-        # List and delete attached policies
-        policies = iam_client.list_role_policies(
-            RoleName=role_name,
-            MaxItems=100
-        )
-        
-        for policy_name in policies['PolicyNames']:
-            print(f"Deleting policy: {policy_name}")
-            iam_client.delete_role_policy(
-                RoleName=role_name,
-                PolicyName=policy_name
-            )
-        
-        # Delete the role
-        iam_client.delete_role(
-            RoleName=role_name
-        )
-        
-        print(f"Deleted role: {role_name}")
-    except Exception as e:
-        print(f"Error cleaning up role: {e}")
-
 def cleanup_resources(deployment_info):
     """Clean up resources created during deployment"""
     print("\nCleaning up resources...")
@@ -227,24 +192,14 @@ def cleanup_resources(deployment_info):
         except Exception as e:
             print(f"Error deleting ECR repository: {e}")
     
-    # Delete IAM role and policies - check if it's a utils.py style role name
+    # Delete IAM role and policies
     role_name = deployment_info.get("role_name")
     if role_name:
-        if role_name.startswith("agentcore-") and role_name.endswith("-role"):
-            # This is a utils.py style role, extract agent name
-            agent_name = role_name.replace("agentcore-", "").replace("-role", "")
-            print(f"Deleting IAM role: {role_name}")
-            try:
-                cleanup_utils_role(agent_name)
-            except Exception as e:
-                print(f"Error deleting IAM role: {e}")
-        else:
-            # This is an iam.py style role
-            print(f"Deleting IAM role: {role_name}")
-            try:
-                cleanup_role(role_name)
-            except Exception as e:
-                print(f"Error deleting IAM role: {e}")
+        print(f"Deleting IAM role: {role_name}")
+        try:
+            cleanup_role(role_name)
+        except Exception as e:
+            print(f"Error deleting IAM role: {e}")
     
     print("Cleanup complete.")
 

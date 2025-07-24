@@ -1,5 +1,5 @@
 #!/bin/bash
-# Quick start script for deploying and testing the math agent
+# Quick start script for deploying and testing agent
 
 set -e  # Exit on error
 
@@ -32,8 +32,7 @@ echo ""
 echo "Testing the agent with a few examples..."
 python "$SCRIPT_DIR/invoke.py" --agent-name agentcore_strands --prompt "How is the weather?"
 python "$SCRIPT_DIR/invoke.py" --agent-name agentcore_strands --prompt "What is 100 - 35?"
-python "$SCRIPT_DIR/invoke.py" --agent-name agentcore_strands --prompt "What is 12 * 8?"
-python "$SCRIPT_DIR/invoke.py" --agent-name agentcore_strands --prompt "What is 144 / 12?"
+python "$SCRIPT_DIR/invoke.py" --agent-name agentcore_strands --prompt "What is the time in New York?"
 
 echo ""
 echo "Agent is deployed and ready to use!"
