@@ -18,8 +18,8 @@ This script will:
 8. Force rebuild option for code changes
 
 Usage:
-  python3 deploy_mcp_agentcore.py           # Normal deployment (reuse existing agent)
-  python3 deploy_mcp_agentcore.py --rebuild # Rebuild Docker image and update existing agent
+  python deploy_mcp_agentcore.py           # Normal deployment (reuse existing agent)
+  python deploy_mcp_agentcore.py --rebuild # Rebuild Docker image and update existing agent
 """
 
 import argparse

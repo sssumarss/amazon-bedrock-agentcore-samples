@@ -1,5 +1,5 @@
 """
-Database tools for MCP Server
+Database tools for PostgreSQL MCP Server
 """
 
 import json

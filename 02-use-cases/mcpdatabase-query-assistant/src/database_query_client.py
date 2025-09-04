@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 MCP App Client with Bedrock Converse API and Rate Limiting
-This is the definitive chat client that executes all necessary tools automatically without user confirmation.
+This is the chat client that executes all necessary tools automatically without user confirmation.
 """
 
 import json
@@ -37,7 +37,7 @@ class RateLimiter:
 
 class FinalMCPChat:
     def __init__(self):
-        """Initialize the final MCP chat client with zero confirmation mode"""
+        """Initialize the MCP chat client with no confirmation mode"""
         print("Initializing Database Query Assistance MCP Chat Client...")
         
         # Initialize rate limiter - increased for better performance
@@ -379,7 +379,6 @@ ALWAYS filter for active records only by default
 - This applies to ALL tables unless user explicitly asks for "inactive" or "all records"
 - If joining tables, use: WHERE table1.is_active = true AND table2.is_active = true
 - User queries like "show users" means "show ACTIVE users"
-- User queries like "count sessions" means "count ACTIVE sessions"
 - Only show inactive records if user specifically asks for "inactive" or "all records"
 """
         
@@ -395,8 +394,6 @@ MANDATORY EXECUTION RULES:
 5. AUTOMATICALLY chain: discover → understand → execute → present results
 {active_filter_instruction}
 SPECIFIC WORKFLOW FOR QUERIES:
-- Weekly sessions query → describe_table('weekly_session') → execute_query({'with is_active=true filter' if active_only else ''}) → format results
-- User info query → describe_table('user') → execute_query({'with is_active=true filter' if active_only else ''}) → format results  
 - Any data query → Auto-discover tables → Auto-execute query({'with is_active=true filter' if active_only else ''}) → Auto-present results
 
 TOOL CHAINING RULES:
@@ -421,7 +418,7 @@ The user asking for data IS the permission to execute everything needed. START E
                 print(f"Processing iteration {iteration}...")
             
             try:
-                # Call Bedrock with aggressive system prompt
+                # Call Bedrock with system prompt
                 response = self.bedrock_client.converse(
                     modelId="us.anthropic.claude-sonnet-4-20250514-v1:0",
                     messages=current_messages,
@@ -561,7 +558,7 @@ The user asking for data IS the permission to execute everything needed. START E
             oldest_call = self.rate_limiter.calls[0]
             time_until_reset = 60 - (now - oldest_call)
             if time_until_reset > 0:
-                print(f"⏰ Next call available in: {time_until_reset:.1f} seconds")
+                print(f"Next call available in: {time_until_reset:.1f} seconds")
         print()
     
     def clear_cache(self):
@@ -577,10 +574,8 @@ The user asking for data IS the permission to execute everything needed. START E
         print("=" * 60)
         print("Natural Language Examples (AUTO-EXECUTED):")
         print("   'What tables do I have?'")
-        print("   'Show me weekly sessions for parent ID xyz'")
         print("   'Get user info for user ID abc'")
         print("   'How many records are in the orders table?'")
-        print("   'Show me holiday camp summary'")
         print()
         print("ZERO CONFIRMATION MODE:")
         print("   • ALL necessary tools execute automatically")
@@ -604,7 +599,6 @@ The user asking for data IS the permission to execute everything needed. START E
         print("=" * 50)
         print("MCP Server: DEPLOYED and READY")
         print(" Database: PostgreSQL")
-        print("AI Assistant: Claude Sonnet 4")
         print("Auto-Execution: ALL tools run automatically")
         print("NO confirmations required - just ask and get results!")
         print()

@@ -21,7 +21,6 @@ class DatabaseConfig:
         """Create configuration from environment variables"""
         return cls(
             host=os.getenv('DB_HOST', 'localhost'),
-            # amazonq-ignore-next-line
             port=int(os.getenv('DB_PORT', '5432')),
             database=os.getenv('DB_NAME', 'postgres'),
             user=os.getenv('DB_USER', 'postgres'),
@@ -35,14 +34,12 @@ class DatabaseConfig:
             'port': self.port,
             'database': self.database,
             'user': self.user,
-            # amazonq-ignore-next-line
             'password': '***'  # Hide password in logs
         }
     
     @property
     def connection_string(self) -> str:
         """Get PostgreSQL connection string"""
-        # amazonq-ignore-next-line
         return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}"
 
 
@@ -59,7 +56,6 @@ class ServerConfig:
         """Create server configuration from environment variables"""
         return cls(
             host=os.getenv('SERVER_HOST', '0.0.0.0'),
-            # amazonq-ignore-next-line
             port=int(os.getenv('SERVER_PORT', '8000')),
             stateless_http=os.getenv('STATELESS_HTTP', 'true').lower() == 'true',
             transport=os.getenv('TRANSPORT', 'streamable-http')

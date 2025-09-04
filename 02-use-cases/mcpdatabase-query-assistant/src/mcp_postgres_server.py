@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Database MCP Server entry point for Bedrock AgentCore Runtime
+PostgreSQL Database MCP Server entry point for Bedrock AgentCore Runtime
 """
 
 import os
@@ -84,7 +84,6 @@ db_tools = DatabaseTools(db_config)
 # Listing MCP tools
 
 @mcp.tool()
-# amazonq-ignore-next-line
 def execute_query(query: str) -> dict:
     """Execute a SQL query and return the results."""
     # Basic input validation to prevent obvious SQL injection attempts
@@ -125,12 +124,10 @@ def get_table_stats(table_name: str, schema_name: str = "public") -> dict:
 @mcp.tool()
 def create_table(table_name: str, columns: str, schema_name: str = "public") -> dict:
     """Create a new table with specified columns."""
-    # amazonq-ignore-next-line
     query = f"CREATE TABLE {schema_name}.{table_name} ({columns})"
     return db_tools.execute_query(query)
 
 @mcp.tool()
-# amazonq-ignore-next-line
 def drop_table(table_name: str, schema_name: str = "public", cascade: bool = False) -> dict:
     """Drop a table from the database."""
     cascade_clause = "CASCADE" if cascade else "RESTRICT"
@@ -138,7 +135,6 @@ def drop_table(table_name: str, schema_name: str = "public", cascade: bool = Fal
     return db_tools.execute_query(query)
 
 @mcp.tool()
-# amazonq-ignore-next-line
 def insert_data(table_name: str, data: str, schema_name: str = "public") -> dict:
     """Insert data into a table using JSON format."""
     import json
@@ -163,12 +159,10 @@ def insert_data(table_name: str, data: str, schema_name: str = "public") -> dict
 @mcp.tool()
 def update_data(table_name: str, set_clause: str, where_clause: str, schema_name: str = "public") -> dict:
     """Update data in a table."""
-    # amazonq-ignore-next-line
     query = f"UPDATE {schema_name}.{table_name} SET {set_clause} WHERE {where_clause}"
     return db_tools.execute_query(query)
 
 @mcp.tool()
-# amazonq-ignore-next-line
 def delete_data(table_name: str, where_clause: str, schema_name: str = "public") -> dict:
     """Delete data from a table."""
     query = f"DELETE FROM {schema_name}.{table_name} WHERE {where_clause}"
