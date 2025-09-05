@@ -56,7 +56,6 @@ mcpdatabase-query-assistant/
 ├── config/                           # Runtime configuration (generated)
 │   ├── .bedrock_agentcore.yaml      # AgentCore runtime config
 │   ├── cognito.json                 # Cognito authentication config
-│   ├── database.env                 # Database connection config
 │   └── mcp_server_config.py         # Server configuration
 │
 │
