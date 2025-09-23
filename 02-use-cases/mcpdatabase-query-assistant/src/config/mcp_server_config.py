@@ -46,7 +46,7 @@ class DatabaseConfig:
 @dataclass
 class ServerConfig:
     """MCP Server configuration"""
-    host: str = "0.0.0.0"
+    host: str = "127.0.0.1"
     port: int = 8000
     stateless_http: bool = True
     transport: str = "streamable-http"
@@ -55,7 +55,7 @@ class ServerConfig:
     def from_env(cls) -> 'ServerConfig':
         """Create server configuration from environment variables"""
         return cls(
-            host=os.getenv('SERVER_HOST', '0.0.0.0'),
+            host=os.getenv('SERVER_HOST', '127.0.0.1'),
             port=int(os.getenv('SERVER_PORT', '8000')),
             stateless_http=os.getenv('STATELESS_HTTP', 'true').lower() == 'true',
             transport=os.getenv('TRANSPORT', 'streamable-http')

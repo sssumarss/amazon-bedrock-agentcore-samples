@@ -268,7 +268,7 @@ class CognitoSetup:
             
             # Generate fresh JWT tokens using existing user
             username = "testuser@example.com"
-            password = "TempPass123!"  # Match the password from create_test_user
+            password = ""  # Match the password from 'create_test_user' for Cognito user pool
             
             try:
                 tokens = self.generate_jwt_tokens(user_pool_id, client_id, username, password)
@@ -672,8 +672,8 @@ class EnhancedMCPDeployment:
                             
                             # Build Docker image
                             print(f"Building: bedrock_agentcore-{existing_name}:latest")
-                            build_cmd = f"docker build -t bedrock_agentcore-{existing_name}:latest ."
-                            result = subprocess.run(build_cmd, shell=True, text=True)
+                            build_cmd = ["docker", "build", "-t", f"bedrock_agentcore-{existing_name}:latest", "."]
+                            result = subprocess.run(build_cmd, text=True)
                             if result.returncode != 0:
                                 print(f"Docker build failed with return code: {result.returncode}")
                                 return None
@@ -683,24 +683,32 @@ class EnhancedMCPDeployment:
                             
                             # Tag and push to ECR
                             print(f"Tagging: {ecr_uri}:latest")
-                            tag_cmd = f"docker tag bedrock_agentcore-{existing_name}:latest {ecr_uri}:latest"
-                            result = subprocess.run(tag_cmd, shell=True, text=True)
+                            tag_cmd = ["docker", "tag", f"bedrock_agentcore-{existing_name}:latest", f"{ecr_uri}:latest"]
+                            result = subprocess.run(tag_cmd, text=True)
                             if result.returncode != 0:
                                 print(f"Docker tag failed with return code: {result.returncode}")
                                 return None
                             
                             # Login to ECR
                             print("Logging into ECR...")
-                            login_cmd = "aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 975910639313.dkr.ecr.us-east-1.amazonaws.com"
-                            result = subprocess.run(login_cmd, shell=True, text=True)
+                            # Get ECR password
+                            get_password = ["aws", "ecr", "get-login-password", "--region", "us-east-1"]
+                            password_result = subprocess.run(get_password, capture_output=True, text=True)
+                            if password_result.returncode != 0:
+                                print(f"ECR get-login-password failed with return code: {password_result.returncode}")
+                                return None
+
+                            # Docker login with password
+                            login_cmd = ["docker", "login", "--username", "AWS", "--password-stdin", "975910639313.dkr.ecr.us-east-1.amazonaws.com"]
+                            result = subprocess.run(login_cmd, input=password_result.stdout, text=True)
                             if result.returncode != 0:
                                 print(f"ECR login failed with return code: {result.returncode}")
                                 return None
                             
                             # Push image
                             print(f"Pushing: {ecr_uri}:latest")
-                            push_cmd = f"docker push {ecr_uri}:latest"
-                            result = subprocess.run(push_cmd, shell=True, text=True)
+                            push_cmd = ["docker", "push", f"{ecr_uri}:latest"]
+                            result = subprocess.run(push_cmd, text=True)
                             if result.returncode != 0:
                                 print(f"Docker push failed with return code: {result.returncode}")
                                 return None

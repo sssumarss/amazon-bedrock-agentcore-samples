@@ -6,6 +6,7 @@ PostgreSQL Database MCP Server entry point for Bedrock AgentCore Runtime
 import os
 import sys
 import json
+import re
 import logging
 from pathlib import Path
 import boto3
@@ -112,12 +113,23 @@ def describe_table(table_name: str, schema_name: str = "public") -> dict:
 @mcp.tool()
 def get_table_stats(table_name: str, schema_name: str = "public") -> dict:
     """Get statistics about a table."""
+    # Validate schema and table names (alphanumeric + underscore only)
+    if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', schema_name):
+        raise ValueError("Invalid schema name")
+    if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table_name):
+        raise ValueError("Invalid table name")
+    
+    # Use properly quoted identifiers to prevent SQL injection
+    schema_quoted = f'"{schema_name}"'
+    table_quoted = f'"{table_name}"'
+    full_table_name = f"{schema_quoted}.{table_quoted}"
+    
     query = f"""
     SELECT 
         COUNT(*) as row_count,
         pg_size_pretty(pg_total_relation_size('{schema_name}.{table_name}')) as total_size,
         pg_size_pretty(pg_relation_size('{schema_name}.{table_name}')) as table_size
-    FROM {schema_name}.{table_name}
+    FROM {full_table_name}
     """
     return db_tools.execute_query(query)
 
@@ -143,11 +155,25 @@ def insert_data(table_name: str, data: str, schema_name: str = "public") -> dict
         columns = list(data_dict.keys())
         values = list(data_dict.values())
         
-        columns_str = ", ".join(columns)
-        placeholders = ", ".join([f"'{v}'" if isinstance(v, str) else str(v) for v in values])
+        # Validate schema and table names
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', schema_name):
+            raise ValueError("Invalid schema name")
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table_name):
+            raise ValueError("Invalid table name")
         
-        query = f"INSERT INTO {schema_name}.{table_name} ({columns_str}) VALUES ({placeholders})"
-        return db_tools.execute_query(query)
+        # Validate column names
+        for col in columns:
+            if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', col):
+                raise ValueError(f"Invalid column name: {col}")
+        
+        # Use quoted identifiers and parameterized values
+        schema_quoted = f'"{schema_name}"'
+        table_quoted = f'"{table_name}"'
+        columns_quoted = ", ".join([f'"{col}"' for col in columns])
+        placeholders = ", ".join(["%s"] * len(values))
+        
+        query = f"INSERT INTO {schema_quoted}.{table_quoted} ({columns_quoted}) VALUES ({placeholders})"
+        return db_tools.execute_query(query, values)
         
     except json.JSONDecodeError as e:
         return {
@@ -159,13 +185,43 @@ def insert_data(table_name: str, data: str, schema_name: str = "public") -> dict
 @mcp.tool()
 def update_data(table_name: str, set_clause: str, where_clause: str, schema_name: str = "public") -> dict:
     """Update data in a table."""
-    query = f"UPDATE {schema_name}.{table_name} SET {set_clause} WHERE {where_clause}"
+    # Validate schema and table names
+    if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', schema_name):
+        raise ValueError("Invalid schema name")
+    if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table_name):
+        raise ValueError("Invalid table name")
+    
+    # Basic validation for SET and WHERE clauses (prevent obvious injection)
+    if not set_clause.strip() or ';' in set_clause or '--' in set_clause:
+        raise ValueError("Invalid SET clause")
+    if not where_clause.strip() or ';' in where_clause or '--' in where_clause:
+        raise ValueError("Invalid WHERE clause")
+    
+    # Use quoted identifiers
+    schema_quoted = f'"{schema_name}"'
+    table_quoted = f'"{table_name}"'
+    
+    query = f"UPDATE {schema_quoted}.{table_quoted} SET {set_clause} WHERE {where_clause}"
     return db_tools.execute_query(query)
 
 @mcp.tool()
 def delete_data(table_name: str, where_clause: str, schema_name: str = "public") -> dict:
     """Delete data from a table."""
-    query = f"DELETE FROM {schema_name}.{table_name} WHERE {where_clause}"
+    # Validate schema and table names
+    if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', schema_name):
+        raise ValueError("Invalid schema name")
+    if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table_name):
+        raise ValueError("Invalid table name")
+    
+    # Basic validation for WHERE clause (prevent obvious injection)
+    if not where_clause.strip() or ';' in where_clause or '--' in where_clause:
+        raise ValueError("Invalid WHERE clause")
+    
+    # Use quoted identifiers
+    schema_quoted = f'"{schema_name}"'
+    table_quoted = f'"{table_name}"'
+    
+    query = f"DELETE FROM {schema_quoted}.{table_quoted} WHERE {where_clause}"
     return db_tools.execute_query(query)
 
 @mcp.tool()

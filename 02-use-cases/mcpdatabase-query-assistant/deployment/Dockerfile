@@ -30,6 +30,10 @@ USER bedrock_agentcore
 EXPOSE 8080
 EXPOSE 8000
 
+# Add healthcheck for container monitoring
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD python -c "import socket; s=socket.socket(); s.connect(('localhost', 8080)); s.close()" || exit 1
+
 # Copy entire project (respecting .dockerignore)
 COPY . .
 

@@ -121,6 +121,13 @@ Create a secret named `mcp-database-credentials` with the following JSON:
   "DB_PASSWORD": "your-password"
 }
 ```
+# Generate fresh JWT tokens using existing user
+Makesure to update the following lines in 'deploy_mcp_agentcore.py'
+
+   username = "testuser@example.com"
+   password = ""  # Match the password from 'create_test_user' for Cognito Userpool
+
+# Check the configuration in 'mcp_server_config.py' as needed for your environment
 
 ### Step 3: Deploy to AgentCore Runtime
 
