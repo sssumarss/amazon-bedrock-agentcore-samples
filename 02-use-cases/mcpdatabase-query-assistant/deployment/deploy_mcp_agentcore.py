@@ -894,7 +894,7 @@ class EnhancedMCPDeployment:
             # Restore original working directory in case of error
             try:
                 os.chdir(original_cwd)
-            except:
+            except OSError:
                 pass
             print(f"\nDeployment failed: {e}")
             return False
