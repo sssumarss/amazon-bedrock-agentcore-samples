@@ -107,7 +107,7 @@ export DB_HOST="your-postgres-host"
 export DB_PORT="5432"
 export DB_NAME="your-database-name"
 export DB_USER="your-username"
-export DB_PASSWORD="your-password"
+export DB_PASSWORD="your-password" # Example only - replace with actual password
 ```
 
 **Alternative: AWS Secrets Manager**

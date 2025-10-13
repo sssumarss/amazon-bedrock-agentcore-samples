@@ -157,8 +157,8 @@ def get_table_stats(table_name: str, schema_name: str = "public") -> dict:
     query = f"""
     SELECT 
         COUNT(*) as row_count,
-        pg_size_pretty(pg_total_relation_size('{schema_name}.{table_name}')) as total_size,
-        pg_size_pretty(pg_relation_size('{schema_name}.{table_name}')) as table_size
+        pg_size_pretty(pg_total_relation_size({full_table_name})) as total_size,
+        pg_size_pretty(pg_relation_size({full_table_name})) as table_size
     FROM {full_table_name}
     """
     return db_tools.execute_query(query)
@@ -230,11 +230,43 @@ def update_data(
     if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", table_name):
         raise ValueError("Invalid table name")
 
-    # Basic validation for SET and WHERE clauses (prevent obvious injection)
-    if not set_clause.strip() or ";" in set_clause or "--" in set_clause:
-        raise ValueError("Invalid SET clause")
-    if not where_clause.strip() or ";" in where_clause or "--" in where_clause:
-        raise ValueError("Invalid WHERE clause")
+    # Stronger validation for SET and WHERE clauses
+    # Block SQL injection patterns
+    dangerous_patterns = [
+        r";",  # Statement terminator
+        r"--",  # SQL comments
+        r"/\*",  # Multi-line comments
+        r"\*/",  # Multi-line comments
+        r"\bUNION\b",  # UNION attacks
+        r"\bDROP\b",  # DROP statements
+        r"\bDELETE\b",  # DELETE statements
+        r"\bINSERT\b",  # INSERT statements
+        r"\bUPDATE\b",  # Nested UPDATE
+        r"\bEXEC\b",  # EXEC commands
+        r"\bEXECUTE\b",  # EXECUTE commands
+        r"\bCREATE\b",  # CREATE statements
+        r"\bALTER\b",  # ALTER statements
+        r"\bTRUNCATE\b",  # TRUNCATE statements
+        r"xp_",  # Extended stored procedures
+    ]
+    
+    for pattern in dangerous_patterns:
+        if re.search(pattern, set_clause, re.IGNORECASE):
+            raise ValueError(f"Invalid SET clause: contains forbidden pattern")
+        if re.search(pattern, where_clause, re.IGNORECASE):
+            raise ValueError(f"Invalid WHERE clause: contains forbidden pattern")
+    
+    # Validate SET clause format: should be "column = value" pairs
+    # Allow: column_name = 'value', column_name = 123, column_name = TRUE, etc.
+    set_pattern = r"^[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(?:'[^']*'|\d+(?:\.\d+)?|TRUE|FALSE|NULL)(?:\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*(?:'[^']*'|\d+(?:\.\d+)?|TRUE|FALSE|NULL))*$"
+    if not re.match(set_pattern, set_clause.strip(), re.IGNORECASE):
+        raise ValueError("Invalid SET clause format")
+    
+    # Validate WHERE clause format: basic comparison operators only
+    # Allow: column = value, column > value, column AND column, etc.
+    where_pattern = r"^[a-zA-Z_][a-zA-Z0-9_]*\s*(?:=|!=|<>|>|<|>=|<=|LIKE|IN)\s*(?:'[^']*'|\d+(?:\.\d+)?|TRUE|FALSE|NULL|\([^)]+\))(?:\s+(?:AND|OR)\s+[a-zA-Z_][a-zA-Z0-9_]*\s*(?:=|!=|<>|>|<|>=|<=|LIKE|IN)\s*(?:'[^']*'|\d+(?:\.\d+)?|TRUE|FALSE|NULL|\([^)]+\)))*$"
+    if not re.match(where_pattern, where_clause.strip(), re.IGNORECASE):
+        raise ValueError("Invalid WHERE clause format")
 
     # Use quoted identifiers
     schema_quoted = f'"{schema_name}"'
@@ -244,6 +276,7 @@ def update_data(
         f"UPDATE {schema_quoted}.{table_quoted} SET {set_clause} WHERE {where_clause}"
     )
     return db_tools.execute_query(query)
+
 
 
 @mcp.tool()
@@ -257,9 +290,34 @@ def delete_data(
     if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", table_name):
         raise ValueError("Invalid table name")
 
-    # Basic validation for WHERE clause (prevent obvious injection)
-    if not where_clause.strip() or ";" in where_clause or "--" in where_clause:
-        raise ValueError("Invalid WHERE clause")
+    # Stronger validation for WHERE clause
+    # Block SQL injection patterns
+    dangerous_patterns = [
+        r";",  # Statement terminator
+        r"--",  # SQL comments
+        r"/\*",  # Multi-line comments
+        r"\*/",  # Multi-line comments
+        r"\bUNION\b",  # UNION attacks
+        r"\bDROP\b",  # DROP statements
+        r"\bDELETE\b",  # Nested DELETE
+        r"\bINSERT\b",  # INSERT statements
+        r"\bUPDATE\b",  # UPDATE statements
+        r"\bEXEC\b",  # EXEC commands
+        r"\bEXECUTE\b",  # EXECUTE commands
+        r"\bCREATE\b",  # CREATE statements
+        r"\bALTER\b",  # ALTER statements
+        r"\bTRUNCATE\b",  # TRUNCATE statements
+        r"xp_",  # Extended stored procedures
+    ]
+    
+    for pattern in dangerous_patterns:
+        if re.search(pattern, where_clause, re.IGNORECASE):
+            raise ValueError(f"Invalid WHERE clause: contains forbidden pattern")
+    
+    # Validate WHERE clause format: basic comparison operators only
+    where_pattern = r"^[a-zA-Z_][a-zA-Z0-9_]*\s*(?:=|!=|<>|>|<|>=|<=|LIKE|IN)\s*(?:'[^']*'|\d+(?:\.\d+)?|TRUE|FALSE|NULL|\([^)]+\))(?:\s+(?:AND|OR)\s+[a-zA-Z_][a-zA-Z0-9_]*\s*(?:=|!=|<>|>|<|>=|<=|LIKE|IN)\s*(?:'[^']*'|\d+(?:\.\d+)?|TRUE|FALSE|NULL|\([^)]+\)))*$"
+    if not re.match(where_pattern, where_clause.strip(), re.IGNORECASE):
+        raise ValueError("Invalid WHERE clause format")
 
     # Use quoted identifiers
     schema_quoted = f'"{schema_name}"'
@@ -490,7 +548,7 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         logger.info("Server stopped by user")
     except Exception as e:
-        logger.error(f"Server error: {e}")
+        logger.warning(f"Server error: {e}")
         raise
     finally:
         db_tools.close_connection()

@@ -27,6 +27,8 @@ import os
 import sys
 import json
 import yaml
+import re
+import shlex
 import boto3
 from pathlib import Path
 from botocore.exceptions import ClientError
@@ -78,7 +80,7 @@ class CognitoSetup:
         """Check if Cognito configuration already exists"""
         if self.config_file.exists():
             try:
-                with open(self.config_file, "r") as f:
+                with open(self.config_file, "r", encoding="utf-8") as f:
                     config = json.load(f)
 
                 # Verify the user pool still exists
@@ -119,7 +121,7 @@ class CognitoSetup:
                 UsernameAttributes=["email"],
                 VerificationMessageTemplate={"DefaultEmailOption": "CONFIRM_WITH_CODE"},
                 MfaConfiguration="OFF",
-                AdminCreateUserConfig={"AllowAdminCreateUserOnly": False},
+                AdminCreateUserConfig={"AllowAdminCreateUserOnly": True},
             )
 
             user_pool_id = response["UserPool"]["Id"]
@@ -250,7 +252,7 @@ class CognitoSetup:
         if tokens.get("refresh_token"):
             config["refresh_token"] = tokens["refresh_token"]
 
-        with open(self.config_file, "w") as f:
+        with open(self.config_file, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=2)
 
         print(f"Configuration saved to {self.config_file}")
@@ -319,6 +321,36 @@ class EnhancedMCPDeployment:
     def __init__(self, server_name="mcp_db_server"):
         self.server_name = server_name
         self.cognito_setup = CognitoSetup()
+        self.aws_account_id = self._get_aws_account_id()
+        self.aws_region = self._get_aws_region()
+    
+    def _get_aws_account_id(self):
+        """Get AWS account ID from STS and validate format"""
+        try:
+            sts_client = boto3.client('sts')
+            account_id = sts_client.get_caller_identity()['Account']
+            
+            # Validate account ID is 12 digits only
+            if not re.match(r'^\d{12}$', account_id):
+                print(f"ERROR: Invalid AWS account ID format: {account_id}")
+                sys.exit(1)
+            
+            print(f"Using AWS Account ID: {account_id}")
+            return account_id
+        except Exception as e:
+            print(f"Error getting AWS account ID: {e}")
+            sys.exit(1)
+    
+    def _get_aws_region(self):
+        """Get AWS region and validate format"""
+        region = "us-east-1"  # Default region
+        
+        # Validate region format (e.g., us-east-1, eu-west-2)
+        if not re.match(r'^[a-z]{2}-[a-z]+-\d+$', region):
+            print(f"ERROR: Invalid AWS region format: {region}")
+            sys.exit(1)
+        
+        return region
 
     def setup_dockerfile_location(self):
         """Setup Dockerfile and .dockerignore in the expected location for AgentCore toolkit"""
@@ -560,7 +592,7 @@ class EnhancedMCPDeployment:
 
             config_file = Path("config/.bedrock_agentcore.yaml")
             if config_file.exists():
-                with open(config_file, "r") as f:
+                with open(config_file, "r", encoding="utf-8") as f:
                     config = yaml.safe_load(f)
 
                 if config and "agents" in config:
@@ -606,7 +638,7 @@ class EnhancedMCPDeployment:
                             config["default_agent"] = self.server_name
 
                             # Write back the updated configuration
-                            with open(config_file, "w") as f:
+                            with open(config_file, "w", encoding="utf-8") as f:
                                 yaml.dump(config, f, default_flow_style=False)
 
                             print("Agent configuration renamed for consistency")
@@ -627,7 +659,7 @@ class EnhancedMCPDeployment:
                                 print(f"   Removed: {old_agent}")
 
                             # Write back the cleaned configuration
-                            with open(config_file, "w") as f:
+                            with open(config_file, "w", encoding="utf-8") as f:
                                 yaml.dump(config, f, default_flow_style=False)
 
                         print(
@@ -683,7 +715,7 @@ class EnhancedMCPDeployment:
                     # Extract agent name from existing config
                     config_file = Path("config/.bedrock_agentcore.yaml")
                     if config_file.exists():
-                        with open(config_file, "r") as f:
+                        with open(config_file, "r", encoding="utf-8") as f:
                             config = yaml.safe_load(f)
 
                         # Get the existing agent name
@@ -699,14 +731,20 @@ class EnhancedMCPDeployment:
                             agent_arn = existing_agents[0][1]["bedrock_agentcore"][
                                 "agent_arn"
                             ]
-                            # ARN format: arn:aws:bedrock-agentcore:us-east-1:975910639313:runtime/mcp_db_server_1755524390-HNauuT72Ex
+                            # ARN format: arn:aws:bedrock-agentcore:us-east-1:xxxxx:runtime/mcp_db_server_xxxx-xxxx
                             existing_name = agent_arn.split("/")[-1].split("-")[
                                 0
                             ]  # Extract mcp_db_server_1755524390
+                            
+                            # Validate existing_name to prevent command injection
+                            if not re.match(r"^[a-zA-Z0-9_]+$", existing_name):
+                                print(f"ERROR: Invalid agent name format: {existing_name}")
+                                return None
+                            
                             print(f"DEBUG: Using existing agent name: {existing_name}")
 
-                            print("🐳 Building new Docker image...")
-                            print("📦 Pushing to ECR...")
+                            print("Building new Docker image...")
+                            print("Pushing to ECR...")
 
                             # For rebuild, just build and push Docker image manually
                             # Don't use AgentCore toolkit to avoid conflicts
@@ -729,7 +767,12 @@ class EnhancedMCPDeployment:
                                 return None
 
                             # Get ECR repository URI - use the full agent name
-                            ecr_uri = f"975910639313.dkr.ecr.us-east-1.amazonaws.com/bedrock-agentcore-{existing_name}"
+                            ecr_uri = f"{self.aws_account_id}.dkr.ecr.{self.aws_region}.amazonaws.com/bedrock-agentcore-{existing_name}"
+                            
+                            # Validate ECR URI format to prevent command injection
+                            if not re.match(r"^[a-zA-Z0-9\.\-/:_]+$", ecr_uri):
+                                print(f"ERROR: Invalid ECR URI format: {ecr_uri}")
+                                return None
 
                             # Tag and push to ECR
                             print(f"Tagging: {ecr_uri}:latest")
@@ -754,7 +797,7 @@ class EnhancedMCPDeployment:
                                 "ecr",
                                 "get-login-password",
                                 "--region",
-                                "us-east-1",
+                                self.aws_region,
                             ]
                             password_result = subprocess.run(
                                 get_password, capture_output=True, text=True
@@ -766,13 +809,15 @@ class EnhancedMCPDeployment:
                                 return None
 
                             # Docker login with password
+                            # Note: aws_account_id and aws_region are validated in __init__
+                            # Using list format (not shell=True) prevents command injection
                             login_cmd = [
                                 "docker",
                                 "login",
                                 "--username",
                                 "AWS",
                                 "--password-stdin",
-                                "975910639313.dkr.ecr.us-east-1.amazonaws.com",
+                                f"{self.aws_account_id}.dkr.ecr.{self.aws_region}.amazonaws.com",
                             ]
                             result = subprocess.run(
                                 login_cmd, input=password_result.stdout, text=True
@@ -784,6 +829,7 @@ class EnhancedMCPDeployment:
                                 return None
 
                             # Push image
+                            # Note: ecr_uri is validated earlier (line ~742)
                             print(f"Pushing: {ecr_uri}:latest")
                             push_cmd = ["docker", "push", f"{ecr_uri}:latest"]
                             result = subprocess.run(push_cmd, text=True)
@@ -905,7 +951,7 @@ class EnhancedMCPDeployment:
             config_file = Path("../config/.bedrock_agentcore.yaml")
 
             if config_file.exists():
-                with open(config_file, "r") as f:
+                with open(config_file, "r", encoding="utf-8") as f:
                     config = yaml.safe_load(f)
 
                 # Add JWT authorizer configuration to the agent
@@ -918,7 +964,7 @@ class EnhancedMCPDeployment:
                     }
 
                     # Write the updated configuration
-                    with open(config_file, "w") as f:
+                    with open(config_file, "w", encoding="utf-8") as f:
                         yaml.dump(config, f, default_flow_style=False)
 
                     print("JWT authorization configured in agent config")
@@ -940,7 +986,7 @@ class EnhancedMCPDeployment:
             # Read the current agent configuration to get the ARN
             config_file = Path("../config/.bedrock_agentcore.yaml")
             if config_file.exists():
-                with open(config_file, "r") as f:
+                with open(config_file, "r", encoding="utf-8") as f:
                     config = yaml.safe_load(f)
 
                 if (
@@ -956,7 +1002,7 @@ class EnhancedMCPDeployment:
                     # Update the MCP client app
                     client_file = Path("../src/database_query_client.py")
                     if client_file.exists():
-                        with open(client_file, "r") as f:
+                        with open(client_file, "r", encoding="utf-8") as f:
                             content = f.read()
 
                         # Find and replace the agent ARN line
@@ -969,7 +1015,7 @@ class EnhancedMCPDeployment:
 
                         updated_content = re.sub(pattern, replacement, content)
 
-                        with open(client_file, "w") as f:
+                        with open(client_file, "w", encoding="utf-8") as f:
                             f.write(updated_content)
 
                         print(f"Updated MCP client with new agent ARN: {new_arn}")
@@ -987,7 +1033,7 @@ class EnhancedMCPDeployment:
         config_file.parent.mkdir(exist_ok=True)
 
         if config_file.exists():
-            with open(config_file, "r") as f:
+            with open(config_file, "r", encoding="utf-8") as f:
                 config = yaml.safe_load(f)
 
             # Add Cognito authorizer configuration
@@ -999,7 +1045,7 @@ class EnhancedMCPDeployment:
                     }
                 }
 
-                with open(config_file, "w") as f:
+                with open(config_file, "w", encoding="utf-8") as f:
                     yaml.dump(config, f, default_flow_style=False)
 
                 print("Updated AgentCore configuration with Cognito authorizer")

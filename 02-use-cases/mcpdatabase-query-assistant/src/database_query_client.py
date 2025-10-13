@@ -55,7 +55,7 @@ class FinalMCPChat:
 
         # Load Cognito configuration
         try:
-            with open("../config/cognito.json", "r") as f:
+            with open("../config/cognito.json", "r", encoding="utf-8") as f:
                 self.cognito_config = json.load(f)
             print("Cognito configuration loaded")
         except Exception as e:
@@ -76,7 +76,7 @@ class FinalMCPChat:
         try:
             import yaml
 
-            with open("../config/.bedrock_agentcore.yaml", "r") as f:
+            with open("../config/.bedrock_agentcore.yaml", "r", encoding="utf-8") as f:
                 yaml.safe_load(f)
 
             # Use the current agent ARN from deployment
@@ -587,7 +587,7 @@ The user asking for data IS the permission to execute everything needed. START E
                             if parsed.get("data") and len(parsed.get("data", [])) > 0:
                                 has_data = True
                                 break
-                        except Exception:
+                        except json.JSONDecodeError:
                             pass
 
                 # If we have data, continue to get final formatted response
